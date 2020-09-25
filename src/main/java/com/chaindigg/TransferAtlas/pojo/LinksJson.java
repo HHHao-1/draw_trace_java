@@ -1,6 +1,4 @@
-package com.chaindigg.filedeal.pojo;
-
-import java.math.BigDecimal;
+package com.chaindigg.TransferAtlas.pojo;
 
 public class LinksJson {
     private Json source;

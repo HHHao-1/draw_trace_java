@@ -1,4 +1,4 @@
-package com.chaindigg.filedeal.utils;
+package com.chaindigg.TransferAtlas.utils;
 
 import org.springframework.web.multipart.MultipartFile;
 

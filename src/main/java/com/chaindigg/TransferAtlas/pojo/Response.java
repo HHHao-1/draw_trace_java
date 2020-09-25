@@ -1,4 +1,4 @@
-package com.chaindigg.filedeal.pojo;
+package com.chaindigg.TransferAtlas.pojo;
 
 import java.math.BigDecimal;
 import java.util.Map;

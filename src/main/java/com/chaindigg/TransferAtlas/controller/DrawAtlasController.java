@@ -1,6 +1,6 @@
-package com.chaindigg.filedeal.controller;
+package com.chaindigg.TransferAtlas.controller;
 
-import com.chaindigg.filedeal.service.JsService;
+import com.chaindigg.TransferAtlas.service.DrawAtlasService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,13 +11,19 @@ import java.util.Map;
 
 @RestController
 @ResponseBody
-public class Controller {
+public class DrawAtlasController {
 
     @Resource
-    private JsService jsService;
+    private DrawAtlasService drawAtlasService;
 
-    @PostMapping("/js")
+    @PostMapping("/drawAtlas")
     public Map<String, Object> js(MultipartFile[] selectFiles, String min, String max, String identification) {
-        return jsService.dealFiles(selectFiles, min, max, identification);
+        Map<String, Object> result = null;
+        try {
+            result = drawAtlasService.dealFiles(selectFiles, min, max, identification);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 }

@@ -1,12 +1,11 @@
-package com.chaindigg.filedeal.service;
+package com.chaindigg.TransferAtlas.service;
 
-import com.chaindigg.filedeal.pojo.Json;
-import com.chaindigg.filedeal.pojo.LinksJson;
-import com.chaindigg.filedeal.pojo.Node;
-import com.chaindigg.filedeal.utils.MultipartFileToFile;
+import com.chaindigg.TransferAtlas.pojo.Json;
+import com.chaindigg.TransferAtlas.pojo.LinksJson;
+import com.chaindigg.TransferAtlas.pojo.Node;
+import com.chaindigg.TransferAtlas.utils.MultipartFileToFile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import sun.awt.SunHints;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -18,7 +17,7 @@ import java.util.*;
  * @author chenghao
  */
 @Service
-public class JsService {
+public class DrawAtlasService {
     public Map<String, Object> dealFiles(MultipartFile[] selectFiles, String min, String max, String identification) {
         System.out.println("ident"+identification);
         System.out.println("min"+min.equals(""));
@@ -213,9 +212,10 @@ public class JsService {
             {
                 put("nodeList", nodeList);
                 put("linkList", linkList);
-                put("nodes",nodes);
-                put("links",links);
-                put("txs",txs);
+                put("identMap", identMap);
+//                put("nodes",nodes);
+//                put("links",links);
+//                put("txs",txs);
             }
         };
         return res;

@@ -54,9 +54,11 @@
 <script type="text/javascript">
     var nodelist;
     var linklist;
-    var nodes;
-    var links;
-    var txs;
+    var identMap;
+    var identMapH;
+    // var nodes;
+    // var links;
+    // var txs;
 
     var circle;
     var text;
@@ -83,40 +85,58 @@
         formData.append("ident",$("#identification").val());
 
         $.ajax({
-            url: '/js', /*接口域名地址*/
+            url: '/drawAtlas', /*接口域名地址*/
             type: 'post',
             data: formData,
             contentType: false,
             processData: false,
             success: function (res) {
-                const {nodeList: nList, linkList: lList, nodes: node, links: link, txs:tx } = res;
+                const {nodeList: nList, linkList: lList, identMapH: iMap} = res;
                 nodelist = nList;
                 linklist = lList;
+                identMapH = iMap;
                 // nodes = node;
                 // links = link;
                 // txs = tx;
-                txs = new Map()
-                for (var key in tx) {
-                    txs.set(key, tx[key])
-                }
-
-                nodes = new Map()
-                for (var key in node) {
-                    nodes.set(key, node[key])
-                }
-
-                links = new Map()
-                for (var key in link) {
-                    var linksValue = new Map()
-                    links.set(key, link[key])
-                    for (var key1 in link[key]) {
-                        linksValue.set(key1, link[key][key1])
-                    }
-                    links.set(key, linksValue)
-                }
+                // txs = new Map()
+                // for (var key in tx) {
+                //     txs.set(key, tx[key])
+                // }
+                //
+                // nodes = new Map()
+                // for (var key in node) {
+                //     nodes.set(key, node[key])
+                // }
+                //
+                // links = new Map()
+                // for (var key in link) {
+                //     var linksValue = new Map()
+                //     links.set(key, link[key])
+                //     for (var key1 in link[key]) {
+                //         linksValue.set(key1, link[key][key1])
+                //     }
+                //     links.set(key, linksValue)
+                // }
 
                 //开始绘图
                 //  drawAtlas(aList, bList);
+                for (var i = 0; i < linklist.length; i++){
+                    let source = linklist[i].source;
+                    let target = linklist[i].target;
+                    for (var j = 0; j < nodelist.length; j++){
+                        if(source.name == nodelist[j].name){
+                            linklist[i].source = nodelist[j]
+                        }
+                        if(target.name == nodelist[j].name){
+                            linklist[i].target = nodelist[j]
+                        }
+                    }
+                }
+                identMap = new Map()
+                for (var key in identMapH) {
+                    identMap.set(key, identMapH[key])
+                }
+
                 drawAtlas();
             },
             error:function(xhr,e){

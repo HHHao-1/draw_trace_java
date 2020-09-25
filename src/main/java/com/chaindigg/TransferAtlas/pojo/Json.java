@@ -1,4 +1,4 @@
-package com.chaindigg.filedeal.pojo;
+package com.chaindigg.TransferAtlas.pojo;
 
 public class Json extends Node{
     private String name;
