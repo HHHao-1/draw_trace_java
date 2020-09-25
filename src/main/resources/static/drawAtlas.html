@@ -43,6 +43,7 @@
     <input type="text" id="maxValue" placeholder="最大值" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
     <input type="text" id="bit" placeholder="地址显示位数" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
     <button type="button" onclick="dealSelectFiles()">解析</button>
+    <br>
     <label id="inCount"></label>
     <label id="outCount"></label>
     <label id="inValue"></label>
@@ -78,7 +79,7 @@
 
             //ajax请求
             $.ajax({
-                url: '/drawAtlas',
+                url: '/dealDrawData',
                 type: 'post',
                 data: formData,
                 contentType: false,
