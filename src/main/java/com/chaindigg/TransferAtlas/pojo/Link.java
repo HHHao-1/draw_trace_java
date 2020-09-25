@@ -1,24 +1,24 @@
 package com.chaindigg.TransferAtlas.pojo;
 
-public class LinksJson {
-    private Json source;
-    private Json target;
+public class Link {
+    private Node source;
+    private Node target;
     private String type;
     private String value;
 
-    public Json getSource() {
+    public Node getSource() {
         return source;
     }
 
-    public void setSource(Json source) {
+    public void setSource(Node source) {
         this.source = source;
     }
 
-    public Json getTarget() {
+    public Node getTarget() {
         return target;
     }
 
-    public void setTarget(Json target) {
+    public void setTarget(Node target) {
         this.target = target;
     }
 

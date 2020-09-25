@@ -6,6 +6,7 @@ public class Node {
     private String inValue;
     private String outValue;
     private String value;
+    private String name;
 
     public Integer getInCount() {
         return inCount;
@@ -45,5 +46,13 @@ public class Node {
 
     public void setValue(String value) {
         this.value = value;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

@@ -1,7 +1,7 @@
 package com.chaindigg.TransferAtlas.service;
 
-import com.chaindigg.TransferAtlas.pojo.Json;
-import com.chaindigg.TransferAtlas.pojo.LinksJson;
+//import com.chaindigg.TransferAtlas.pojo.Json;
+import com.chaindigg.TransferAtlas.pojo.Link;
 import com.chaindigg.TransferAtlas.pojo.Node;
 import com.chaindigg.TransferAtlas.utils.MultipartFileToFile;
 import org.springframework.stereotype.Service;
@@ -35,8 +35,8 @@ public class DrawAtlasService {
         Map<String, Map<String, String>> links = (Map<String, Map<String, String>>)dealSelectFile.get("links");
 
         //前端需要的数据结构
-        List<Json> nodeList = new ArrayList<>();
-        List<LinksJson> linkList = new ArrayList<>();
+        List<Node> nodeList = new ArrayList<>();
+        List<Link> linkList = new ArrayList<>();
 
 
         Map<String, String> identMap = new HashMap();
@@ -70,39 +70,39 @@ public class DrawAtlasService {
 
         boolean filtered = false;
 
-        Map<String, Json> tmpNodeMap = new HashMap();
+        Map<String, Node> tmpNodeMap = new HashMap();
         // 构建绘制需要的node节点信息，构建nodelist
         for (Map.Entry<String, Node> entry : nodes.entrySet()) {
             if (identMap.get(entry.getKey()) == "-") {
                 continue;
             }
-            Json json = new Json();
-            json.setName(entry.getKey());
-            json.setValue(entry.getValue().getValue());
-            json.setInCount(entry.getValue().getInCount());
-            json.setOutCount(entry.getValue().getOutCount());
-            json.setInValue(entry.getValue().getInValue());
-            json.setOutValue(entry.getValue().getOutValue());
-            nodeList.add(json);
-            tmpNodeMap.put(entry.getKey(), json);
+            Node node = new Node();
+            node.setName(entry.getKey());
+            node.setValue(entry.getValue().getValue());
+            node.setInCount(entry.getValue().getInCount());
+            node.setOutCount(entry.getValue().getOutCount());
+            node.setInValue(entry.getValue().getInValue());
+            node.setOutValue(entry.getValue().getOutValue());
+            nodeList.add(node);
+            tmpNodeMap.put(entry.getKey(), node);
         }
 
         // 构建绘制需要的link信息，构建linklist
         for (Map.Entry<String, Map<String, String>> entry1 : links.entrySet()) {
             // from节点
-            LinksJson linksJson = new LinksJson();
-            linksJson.setSource(tmpNodeMap.get(entry1.getKey()));
+            Link link = new Link();
+            link.setSource(tmpNodeMap.get(entry1.getKey()));
             // to节点
             for (Map.Entry<String, String> entry2 : entry1.getValue().entrySet()) {
                 if (identMap.get(entry2.getKey()) == "-") {
                     continue;
                 }
-                LinksJson linksJson2 = new LinksJson();
-                linksJson2.setSource(linksJson.getSource());
-                linksJson2.setTarget(tmpNodeMap.get(entry2.getKey()));
+                Link link2 = new Link();
+                link2.setSource(link.getSource());
+                link2.setTarget(tmpNodeMap.get(entry2.getKey()));
                 // 用于样式
-                linksJson2.setType("resolved");
-                linksJson2.setValue(String.valueOf(entry2.getValue()));
+                link2.setType("resolved");
+                link2.setValue(String.valueOf(entry2.getValue()));
 
                 // 过滤不符合条件的link
                 if (minValue.compareTo(new BigDecimal(-1)) != 0 && new BigDecimal(entry2.getValue()).compareTo(minValue) == -1) {
@@ -114,7 +114,7 @@ public class DrawAtlasService {
                     continue;
                 }
 
-                linkList.add(linksJson2);
+                linkList.add(link2);
             }
         }
 
