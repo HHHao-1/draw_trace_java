@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="./js/d3.v3.min.js"></script>
+    <script src="./js/js-big-decimal.min.js"></script>
+    <title>Transfer Atlas</title>
+    <style>
+        .link {
+            fill: none;
+            stroke: #666;
+            stroke-width: 1.5px;
+        }
+        #licensing {
+            fill: green;
+        }
+        .link.licensing {
+            stroke: green;
+        }
+        .link.resolved {
+            stroke-dasharray: 0,2 1;
+        }
+        circle {
+            fill: #ccc;
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+        text {
+            font: 12px Microsoft YaHei;
+            pointer-events: none;
+            text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        }
+        .linetext {
+            font-size: 12px Microsoft YaHei;
+        }
+    </style>
+</head>
+<body>
+<div style="position: fixed">
+    <input type="file" id="selectFiles" multiple="multiple" accept=".csv">
+    <input type="text" id="minValue" placeholder="最小值" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
+    <input type="text" id="maxValue" placeholder="最大值" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
+    <input type="text" id="bit" placeholder="地址显示位数" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
+    <button type="button" onclick="dealSelectFiles()">解析</button>
+    <label id="inCount">输入次数：</label>
+    <label id="outCount">输出次数：</label>
+    <label id="inValue">输入额度：</label>
+    <label id="outValue">输出额度：</label>
+    <label id="value">余额：</label>
+    <br>
+    <textarea id="identification" style="width:200px;height:80px;" placeholder="这里输入标注信息"></textarea>
+</div>
+<script type="text/javascript">
+    var nodelist;
+    var linklist;
+    var nodes;
+    var links;
+    var txs;
+
+    var circle;
+    var text;
+    var edges_line;
+    var edges_text;
+    var svg;
+
+    function dealSelectFiles() {
+        var selectFiles = document.getElementById("selectFiles").files;
+
+        document.getElementById("inCount").innerText = "输入次数：";
+        document.getElementById("outCount").innerText = "输出次数：";
+        document.getElementById("inValue").innerText = "输入额度：";
+        document.getElementById("outValue").innerText = "输出额度：";
+        document.getElementById("value").innerText = "余额：";
+
+        nodelist = [];
+        linklist = [];
+        nodes = new Map();
+        links = new Map();
+        txs = new Map();
+
+
+        var promises = [];
+        Array.from(selectFiles).forEach(item => {
+            promises.push(
+                new Promise(((resolve, reject) => {
+                    var reader = new FileReader()
+                    reader.readAsText(item)
+                    reader.onload = resolve
+                }))
+            )
+        })
+        Promise.all(promises).then(value => {
+            Array.from(value).forEach(result => {
+//                    console.log(result.target.result);
+
+                var data = result.target.result;
+                var splitdate = data.split(/\s+/);
+                // 解析文件
+                for (var i = 0; i < splitdate.length; i++) {
+                    // 去掉CSV文件头
+                    if (i == 0)
+                        continue;
+
+                    // 解析数据
+                    var data = splitdate[i].split(",");
+                    var tx = data[0];
+                    var from = data[1];
+                    var to = data[2];
+                    var value = new bigDecimal(data[3]);
+
+                    // 防止文件末尾有空行
+                    if (tx.length == 0)
+                        break;
+
+                    // 去除重复交易
+                    if (txs.has(tx))
+                        continue;
+
+                    txs.set(tx, "");
+
+                    // 将value累加到node节点上，from为负数，to为正数
+                    if (nodes.has(from)) {
+                        let node = nodes.get(from);
+                        node.outCount++;
+                        node.outValue = node.outValue.add(value);
+                        node.value = node.value.add(value.multiply(new bigDecimal(-1)));
+                        nodes.set(from, node);
+                    } else {
+                        let node = {};
+                        node.outCount = 1;
+                        node.inCount = 0;
+                        node.outValue = value;
+                        node.inValue = new bigDecimal(0);
+                        node.value = value.multiply(new bigDecimal(-1));
+                        nodes.set(from, node);
+                    }
+
+                    if (nodes.has(to)) {
+                        let node = nodes.get(to);
+                        node.inCount++;
+                        node.inValue = node.inValue.add(value);
+                        node.value = node.value.add(value);
+                        nodes.set(to, node);
+                    } else {
+                        let node = {};
+                        node.inCount = 1;
+                        node.outCount = 0;
+                        node.inValue = value;
+                        node.outValue = new bigDecimal(0);
+                        node.value = value;
+                        nodes.set(to, node);
+                    }
+
+                    // 计算节点关系，形式为Map<from, Map<to, value>>，value累加
+                    if (links.has(from)) {
+                        let link = links.get(from);
+                        if (link.has(to))
+                            link.set(to, link.get(to).add(value));
+                        else
+                            link.set(to, value);
+                    } else {
+                        let link = new Map();
+                        link.set(to, value);
+                        links.set(from, link);
+                    }
+                }
+            });
+
+            // 绘制图谱
+            drawAtlas();
+
+        })
+    }
+
+    function drawAtlas() {
+//            console.log("drawAtlas");
+
+        var tmpNodeMap = new Map();
+        var identMap = new Map();
+
+        var value1 = document.getElementById("minValue").value;
+        var value2 = document.getElementById("maxValue").value;
+        var bit = document.getElementById("bit").value;
+
+        // 设置高亮节点
+        var data = document.getElementById("identification").value;
+        var splitdate = data.split(/\s+/);
+        // 解析文件
+        for (var i = 0; i < splitdate.length; i++) {
+            // 解析高亮条件
+            var data = splitdate[i].split(",");
+            var address = data[0];
+            var ident = data[1];
+            identMap.set(address, ident);
+        }
+
+            // 设置最大值和最小值
+        var minValue = new bigDecimal(-1);
+        var maxValue = new bigDecimal(-1);
+        if (value1 != "")
+            minValue = new bigDecimal(document.getElementById("minValue").value);
+        if (value2 != "")
+            maxValue = new bigDecimal(document.getElementById("maxValue").value);
+
+        var filtered = false;
+
+        // 构建绘制需要的node节点信息
+        for (var [key, value] of nodes) {
+            if (identMap.get(key) == "-")
+                continue;
+
+            let json = {};
+            json.name = key;
+            json.value = value.value.getValue();
+            json.inCount = value.inCount;
+            json.outCount = value.outCount;
+            json.inValue = value.inValue.getValue();
+            json.outValue = value.outValue.getValue();
+            nodelist.push(json);
+            tmpNodeMap.set(key, json);
+        }
+
+        // 构建绘制需要的link信息
+        for (var [key, value] of links) {
+            if (identMap.get(key) == "-")
+                continue;
+
+            var json = {};
+            let nodeJson = {};
+            // from节点
+            json.source = tmpNodeMap.get(key);
+            // to节点
+            for (var [key, value1] of value) {
+                if (identMap.get(key) == "-")
+                    continue;
+                let nodeJson = {};
+                let json2 = {};
+                json2.source = json.source;
+                json2.target = tmpNodeMap.get(key);
+                // 用于样式
+                json2.type = "resolved";
+                json2.value = value1.getValue();
+
+                // 过滤不符合条件的link
+                if (minValue.compareTo(new bigDecimal(-1)) != 0 && value1.compareTo(minValue) == -1) {
+                    filtered = true;
+                    continue;
+                }
+                if (maxValue.compareTo(new bigDecimal(-1)) != 0 && value1.compareTo(maxValue) == 1) {
+                    filtered = true;
+                    continue;
+                }
+
+                linklist.push(json2);
+            }
+        }
+
+        // 根据过滤结果，去掉node
+        if (filtered) {
+            for (var i = nodelist.length - 1; i >= 0; i--) {
+                var find = false;
+                for (var j = 0; j < linklist.length; j++) {
+                    if (nodelist[i].name == linklist[j].source.name || nodelist[i].name == linklist[j].target.name) {
+                        find = true;
+                        break;
+                    }
+                }
+
+                if (!find)
+                    nodelist.splice(i, 1);
+            }
+        }
+
+        // 绘制图谱
+        var width = 0;
+        var height = 0;
+
+        d3.select("svg").remove();
+
+        var force = d3.layout.force()//layout将json格式转化为力学图可用的格式
+            .nodes(nodelist)//设定节点数组
+            .links(linklist)//设定连线数组
+            .size([width, height])//作用域的大小
+            .linkDistance(180)//连接线长度
+            .charge(-1500)//顶点的电荷数。该参数决定是排斥还是吸引，数值越小越互相排斥
+            .on("tick", tick)//指时间间隔，隔一段时间刷新一次画面
+            .start();//开始转换
+
+        svg = d3.select("body").append("svg")
+            .attr('id', 'svg')
+            .attr("width", width)
+            .attr("height", height);
+
+        //箭头
+        var marker = svg.append("marker")
+            .attr("id", "resolved")
+            .attr("markerUnits","userSpaceOnUse")
+            .attr("viewBox", "0 -5 10 10")//坐标系的区域
+            .attr("refX", 26)//箭头坐标
+            .attr("refY", -1)
+            .attr("markerWidth", 12)//标识的大小
+            .attr("markerHeight", 12)
+            .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
+            .attr("stroke-width",2)//箭头宽度
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")//箭头的路径
+            .attr('fill','#000000');//箭头颜色
+
+        var markerIdent = svg.append("marker")
+            .attr("id", "resolvedIdent")
+            .attr("markerUnits","userSpaceOnUse")
+            .attr("viewBox", "0 -5 10 10")//坐标系的区域
+            .attr("refX", 44)//箭头坐标
+            .attr("refY", 0)
+            .attr("markerWidth", 12)//标识的大小
+            .attr("markerHeight", 12)
+            .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
+            .attr("stroke-width",2)//箭头宽度
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")//箭头的路径
+            .attr('fill','#000000');//箭头颜色
+
+        //设置连接线
+        edges_line = svg.selectAll(".edgepath")
+            .data(force.links())
+            .enter()
+            .append("path")
+            .attr({
+                'd': function(d) {return 'M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y},
+                'class':'edgepath',
+                'id':function(d,i) {return 'edgepath'+i;}})
+            .style("stroke",function(d){
+                return '#B43232';
+            })
+            .style("pointer-events", "none")
+            .style("stroke-width",0.5)//线条粗细
+            .attr("marker-end", function (d) {
+                if (identMap.has(d.target.name))
+                    return "url(#resolvedIdent)";
+                else
+                    return "url(#resolved)";
+            });//根据箭头标记的id号标记箭头
+
+        edges_text = svg.append("g").selectAll(".edgelabel")
+            .data(force.links())
+            .enter()
+            .append("text")
+            .style("pointer-events", "none")
+            .attr({  'class':'edgelabel',
+                'id':function(d,i){return 'edgepath'+i;},
+                'dx':80,
+                'dy':0
+            });
+
+        //设置线条上的文字
+        edges_text.append('textPath')
+            .attr('xlink:href',function(d,i) {return '#edgepath'+i})
+            .style("pointer-events", "none")
+            .text(function(d){return d.value;});
+
+        //圆圈
+        circle = svg.append("g").selectAll("circle")
+            .data(force.nodes())//表示使用force.nodes数据
+            .enter().append("circle")
+            .style("fill",function(node){
+                if (node.outCount > node.inCount)
+                    return '#FFF1CF';
+                else
+                    return '#FEF4F4';
+            })
+            .style('stroke',function(node){
+                if (node.value > 0)
+                    return '#69B076';
+                else
+                    return '#4C6CB3';
+            })
+            .attr("r", function (node){
+                if (identMap.has(node.name))
+                    return 40;
+                else
+                    return 20;
+            })//设置圆圈半径
+            .on("click",function(node){
+                //单击时让连接线加粗
+                edges_line.style("stroke-width",function(line){
+                    if(line.source.name==node.name || line.target.name==node.name){
+                        return 4;
+                    }else{
+                        return 0.5;
+                    }
+                });
+                document.getElementById("inCount").innerText = "输入次数：" + node.inCount;
+                document.getElementById("outCount").innerText = "输出次数：" + node.outCount;
+                document.getElementById("inValue").innerText = "输入额度：" + node.inValue;
+                document.getElementById("outValue").innerText = "输出额度：" + node.outValue;
+                document.getElementById("value").innerText = "余额：" + node.value;
+            })
+            .call(force.drag);//将当前选中的元素传到drag函数中，使顶点可以被拖动
+
+        //圆圈的提示文字
+        circle.append("svg:title")
+            .text(function(node) {
+                return node.name;
+            });
+
+        text = svg.append("g").selectAll("text")
+            .data(force.nodes())
+            //返回缺失元素的占位对象（placeholder），指向绑定的数据中比选定元素集多出的一部分元素。
+            .enter()
+            .append("text")
+            .attr("dy", ".35em")
+            .attr("text-anchor", "middle")//在圆圈中加上数据
+            .style('fill',function(node){
+                if (node.value > 0)
+                    return '#EB5381';
+                else
+                    return '#94ADDA';
+            }).attr('x',function(d){
+                var re_en = /[a-zA-Z]+/g;
+                var name = identMap.get(d.name);
+                if (name == "" || name == undefined) {
+                    name = d.name;
+                    if (bit != "")
+                        name = d.name.substr(0, bit);
+                }
+
+                //如果是全英文，不换行
+                if(name.match(re_en)){
+                    d3.select(this).append('tspan')
+                        .attr('x',0)
+                        .attr('y',2)
+                        .text(function(){return name;});
+                }
+                //如果小于四个字符，不换行
+                else if(name.length<=4){
+                    d3.select(this).append('tspan')
+                        .attr('x',0)
+                        .attr('y',2)
+                        .text(function(){return name;});
+                }else{
+                    var top=name.substring(0,4);
+                    var bot=name.substring(4,name.length);
+
+                    d3.select(this).text(function(){return '';});
+
+                    d3.select(this).append('tspan')
+                        .attr('x',0)
+                        .attr('y',-7)
+                        .text(function(){return top;});
+
+                    d3.select(this).append('tspan')
+                        .attr('x',0)
+                        .attr('y',10)
+                        .text(function(){return bot;});
+                }
+                //直接显示文字
+                /*.text(function(d) {
+                return d.name; */
+            });
+
+    }
+
+    function tick() {
+        circle.attr("transform", transform1);//圆圈
+        text.attr("transform", transform2);//顶点文字
+
+        edges_line.attr('d', function(d) {
+            var path='M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y;
+            return path;
+        });
+
+        edges_text.attr('transform',function(d,i){
+            if (d.target.x<d.source.x){
+                bbox = this.getBBox();
+                rx = bbox.x+bbox.width/2;
+                ry = bbox.y+bbox.height/2;
+                return 'rotate(180 '+rx+' '+ry+')';
+            }
+            else {
+                return 'rotate(0)';
+            }
+        });
+
+        // 动态调整画布大小，可以显示出全部node
+
+        //  计算左上角的点与右下角的点
+        var max = {x : 0, y : 0},
+            min = {x : 0, y : 0}
+
+        circle.attr("id", function (node) {
+            if(node.px > max.x) {
+                max.x = node.px
+            }
+            if(node.py > max.y) {
+                max.y = node.py
+            }
+            if(node.px < min.x) {
+                min.x = node.px
+            }
+            if(node.py < min.y) {
+                min.y = node.py
+            }
+        })
+
+        max.x += 100;
+        max.y += 100;
+        min.x -= 100;
+        min.y -= 100;
+
+        //  改进SVG的视图区域
+        var width = max.x - min.x,
+            height = max.y - min.y;
+        //  设置大小
+        svg.attr('width', width)
+        svg.attr('height', height)
+        //  设置可见区域
+        svg.attr('viewBox', min.x + ',' + min.y + ',' + width + ',' + height)
+    }
+
+    //设置连接线的坐标,使用椭圆弧路径段双向编码
+    function linkArc(d) {
+        return 'M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y
+    }
+
+    //设置圆圈和文字的坐标
+    function transform1(d) {
+        return "translate(" + d.x + "," + d.y + ")";
+    }
+
+    function transform2(d) {
+        return "translate(" + (d.x) + "," + d.y + ")";
+    }
+
+
+</script>
+</body>
+</html>
