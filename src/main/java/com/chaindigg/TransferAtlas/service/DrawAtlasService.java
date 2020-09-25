@@ -18,113 +18,43 @@ import java.util.*;
  */
 @Service
 public class DrawAtlasService {
-    public Map<String, Object> dealFiles(MultipartFile[] selectFiles, String min, String max, String identification) {
-        System.out.println("ident"+identification);
-        System.out.println("min"+min.equals(""));
-//        Set response = new HashSet();
-        Map<String, Node> nodes = new HashMap<>();
-        Map<String, Map<String, String>> links = new HashMap<>();
-        Map<String, String> txs = new HashMap();
+
+    /**
+     * 构建绘图信息
+     * @param selectFiles
+     * @param min
+     * @param max
+     * @param identification
+     * @return Map<String, Object>
+     * @throws Exception
+     */
+    public Map<String, Object> dealData(MultipartFile[] selectFiles, String min, String max, String identification) throws Exception {
+
+        Map<String, Object> dealSelectFile = dealSelectFile(selectFiles);
+        Map<String, Node> nodes = (Map<String, Node>)dealSelectFile.get("nodes");
+        Map<String, Map<String, String>> links = (Map<String, Map<String, String>>)dealSelectFile.get("links");
+
+        //前端需要的数据结构
         List<Json> nodeList = new ArrayList<>();
         List<LinksJson> linkList = new ArrayList<>();
-        System.out.println("length"+selectFiles.length);
-        if (selectFiles.length > 0) {
-            for (MultipartFile selectFile : selectFiles) {
-                try {
-                    File inFile = MultipartFileToFile.multipartFileToFile(selectFile);
-                    String inString = "";
-                    BufferedReader reader = new BufferedReader(new FileReader(inFile));
-                    MultipartFileToFile.delteTempFile(inFile);
-                    int i = 0;
-                    while ((inString = reader.readLine()) != null) {
-                        if (i == 0) {
-                            i++;
-                            continue;
-                        }
-                        // 解析数据
-                        String[] data = inString.split(",");
-                        String tx = data[0];
-                        String from = data[1];
-                        String to = data[2];
-                        BigDecimal value = new BigDecimal(data[3]);
 
-                        if (tx.length() == 0) {
-                            break;
-                        }
 
-                        if (txs.containsValue(tx)) {
-                            continue;
-                        }
-                        txs.put(tx, "");
-
-                        // 将value累加到node节点上，from为负数，to为正数
-                        if (nodes.containsKey(from)) {
-                            Node node = nodes.get(from);
-                            Integer outCount = node.getOutCount();
-                            node.setOutCount(++outCount);
-                            node.setOutValue(String.valueOf(new BigDecimal(node.getOutValue()).add(value)));
-                            node.setValue(String.valueOf(new BigDecimal(node.getValue()).add(value.multiply(new BigDecimal(-1)))));
-                            nodes.put(from, node);
-                        } else {
-                            Node node1 = new Node();
-                            node1.setOutCount(1);
-                            node1.setInCount(0);
-                            node1.setOutValue((new BigDecimal(String.valueOf(value))).toString());
-                            node1.setInValue(String.valueOf(new BigDecimal(0)));
-                            node1.setValue(String.valueOf(value.multiply(new BigDecimal(-1))));
-                            nodes.put(from, node1);
-                        }
-
-                        if (nodes.containsKey(to)) {
-                            Node node = nodes.get(to);
-                            Integer inCount = node.getInCount();
-                            node.setInCount(++inCount);
-                            node.setInValue(String.valueOf(new BigDecimal(node.getInValue()).add(value)));
-                            node.setValue(String.valueOf(new BigDecimal(node.getValue()).add(value)));
-                            nodes.put(to, node);
-                        } else {
-                            Node node2 = new Node();
-                            node2.setOutCount(0);
-                            node2.setInCount(1);
-                            node2.setOutValue(String.valueOf(new BigDecimal(0)));
-                            node2.setInValue(String.valueOf(value));
-                            node2.setValue(String.valueOf(value));
-                            nodes.put(to, node2);
-                        }
-                        Map<String, String> link = new HashMap<>();
-                        // 计算节点关系，形式为Map<from, Map<to, value>>，value累加
-                        if (links.containsKey(from)) {
-                            link = links.get(from);
-                            if (link.containsKey(to)) {
-                                link.put(to, String.valueOf(new BigDecimal(link.get(to)).add(value)));
-                            } else {
-                                link.put(to, String.valueOf(value));
-                            }
-                        } else {
-                            link.put(to, String.valueOf(value));
-                            links.put(from, link);
-                        }
-                    }
-                    reader.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        Map<String, Json> tmpNodeMap = new HashMap();
         Map<String, String> identMap = new HashMap();
-
         // 设置高亮节点
-        if (identification!=null) {
-            String[] splitdate = identification.split("\\s+");
-            // 解析文件
-            for (int i = 0; i < splitdate.length; i++) {
-                // 解析高亮条件
-                String[] data = splitdate[i].split(",");
-                String address = data[0];
-                String ident = data[1];
-                identMap.put(address, ident);
+        if (identification != null && !identification.equals("")) {
+            if (identification.contains("，")) {
+                identMap.put("error", "请使用英文逗号");
+            } else {
+                identMap.put("error", "");
+                String[] splitdate = identification.split("\\s+");
+                // 解析文件
+                for (int i = 0; i < splitdate.length; i++) {
+                    // 解析高亮条件
+                    String[] data = splitdate[i].split(",");
+                    String address = data[0];
+                    String ident = data[1];
+                    identMap.put(address, ident);
+                }
             }
         }
 
@@ -140,7 +70,8 @@ public class DrawAtlasService {
 
         boolean filtered = false;
 
-        // 构建绘制需要的node节点信息
+        Map<String, Json> tmpNodeMap = new HashMap();
+        // 构建绘制需要的node节点信息，构建nodelist
         for (Map.Entry<String, Node> entry : nodes.entrySet()) {
             if (identMap.get(entry.getKey()) == "-") {
                 continue;
@@ -156,9 +87,8 @@ public class DrawAtlasService {
             tmpNodeMap.put(entry.getKey(), json);
         }
 
-        // 构建绘制需要的link信息
+        // 构建绘制需要的link信息，构建linklist
         for (Map.Entry<String, Map<String, String>> entry1 : links.entrySet()) {
-
             // from节点
             LinksJson linksJson = new LinksJson();
             linksJson.setSource(tmpNodeMap.get(entry1.getKey()));
@@ -205,20 +135,118 @@ public class DrawAtlasService {
                 }
             }
         }
-//        response.add(nodeList);
-//        response.add(linkList);
 
-        HashMap<String, Object> res = new HashMap<String, Object>() {
+        //构建返回值
+        HashMap<String, Object> response = new HashMap<String, Object>() {
             {
                 put("nodeList", nodeList);
                 put("linkList", linkList);
                 put("identMap", identMap);
-//                put("nodes",nodes);
-//                put("links",links);
-//                put("txs",txs);
             }
         };
-        return res;
-//        return response;
+        return response;
+    }
+
+    /***
+     * 处理csv文件
+     * @param selectFiles
+     * @return
+     * @throws Exception
+     */
+    public Map<String, Object> dealSelectFile(MultipartFile[] selectFiles) throws Exception {
+
+        Map<String, Node> nodes = new HashMap<>();
+        Map<String, Map<String, String>> links = new HashMap<>();
+        Map<String, String> txs = new HashMap();
+
+
+        if (selectFiles.length > 0) {
+            for (MultipartFile selectFile : selectFiles) {
+                File inFile = MultipartFileToFile.multipartFileToFile(selectFile);
+                String inString = "";
+                BufferedReader reader = new BufferedReader(new FileReader(inFile));
+                MultipartFileToFile.delteTempFile(inFile);
+                int i = 0;
+                while ((inString = reader.readLine()) != null) {
+                    if (i == 0) {
+                        i++;
+                        continue;
+                    }
+
+                    // 解析csv文件数据
+                    String[] data = inString.split(",");
+                    String tx = data[0];
+                    String from = data[1];
+                    String to = data[2];
+                    BigDecimal value = new BigDecimal(data[3]);
+
+                    if (tx.length() == 0) {
+                        break;
+                    }
+
+                    if (txs.containsValue(tx)) {
+                        continue;
+                    }
+                    txs.put(tx, "");
+
+                    // 将value累加到node节点上，from为负数，to为正数
+                    if (nodes.containsKey(from)) {
+                        Node node = nodes.get(from);
+                        Integer outCount = node.getOutCount();
+                        node.setOutCount(++outCount);
+                        node.setOutValue(String.valueOf(new BigDecimal(node.getOutValue()).add(value)));
+                        node.setValue(String.valueOf(new BigDecimal(node.getValue()).add(value.multiply(new BigDecimal(-1)))));
+                        nodes.put(from, node);
+                    } else {
+                        Node node1 = new Node();
+                        node1.setOutCount(1);
+                        node1.setInCount(0);
+                        node1.setOutValue((new BigDecimal(String.valueOf(value))).toString());
+                        node1.setInValue(String.valueOf(new BigDecimal(0)));
+                        node1.setValue(String.valueOf(value.multiply(new BigDecimal(-1))));
+                        nodes.put(from, node1);
+                    }
+
+                    if (nodes.containsKey(to)) {
+                        Node node = nodes.get(to);
+                        Integer inCount = node.getInCount();
+                        node.setInCount(++inCount);
+                        node.setInValue(String.valueOf(new BigDecimal(node.getInValue()).add(value)));
+                        node.setValue(String.valueOf(new BigDecimal(node.getValue()).add(value)));
+                        nodes.put(to, node);
+                    } else {
+                        Node node2 = new Node();
+                        node2.setOutCount(0);
+                        node2.setInCount(1);
+                        node2.setOutValue(String.valueOf(new BigDecimal(0)));
+                        node2.setInValue(String.valueOf(value));
+                        node2.setValue(String.valueOf(value));
+                        nodes.put(to, node2);
+                    }
+                    Map<String, String> link = new HashMap<>();
+                    // 计算节点关系，形式为Map<from, Map<to, value>>，value累加
+                    if (links.containsKey(from)) {
+                        link = links.get(from);
+                        if (link.containsKey(to)) {
+                            link.put(to, String.valueOf(new BigDecimal(link.get(to)).add(value)));
+                        } else {
+                            link.put(to, String.valueOf(value));
+                        }
+                    } else {
+                        link.put(to, String.valueOf(value));
+                        links.put(from, link);
+                    }
+                }
+                reader.close();
+            }
+        }
+        Map<String, Object> response = new HashMap<String, Object>() {
+            {
+                put("nodes", nodes);
+                put("links", links);
+            }
+        };
+        return response;
+
     }
 }
