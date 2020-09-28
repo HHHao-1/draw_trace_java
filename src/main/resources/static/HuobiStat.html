@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script type="text/javascript" src="./js/xlsx.core.min.js"></script>
+    <script src="./js/js-big-decimal.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <title>Huobi Stat</title>
+</head>
+<body>
+    <div style="position: fixed">
+        <input type="file" id="selectFile" accept=".xlsx">
+        <button type="button" onclick="dealSelectFile()">解析</button>
+    </div>
+    <br>
+    <br>
+    <label id="inCount">输入文件为原始火币调证格式，如下面四图所示，需包含这四个页，且页中的列顺序不能错误：</label>
+    <br>
+    <img src="./images/5.png" alt="用户注册信息" width="70%"/>
+    <br>
+    <br>
+    <img src="./images/1.png" alt="otc交易记录" width="70%"/>
+    <br>
+    <br>
+    <img src="./images/2.png" alt="充提记录" width="70%" />
+    <br>
+    <br>
+    <img src="./images/3.png" alt="虚拟币交易记录" width="70%" />
+    <br>
+    <br>
+    <label id="inCount">输出文件为下面格式：</label>
+    <br>
+    <img src="./images/4.png" alt="火币调证整理" width="50%" />
+
+    <script type="text/javascript">
+        var results = [];
+        function dealSelectFile() {
+            var formData = new FormData();
+            formData.append("selectFile", $("#selectFile")[0].files[0]);
+            $.ajax({
+                url: '/huobiStat',
+                type: 'post',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (res) {
+                    alert("解析成功");
+                    results = res;
+                    newbook = XLSX.utils.book_new();
+                    for (var i = 0; i < results.length; i++){
+                        if(i % 2 === 0){
+                            var wooksheet0 = XLSX.utils.aoa_to_sheet(results[i]);
+                            XLSX.utils.book_append_sheet(newbook, wooksheet0,results[i+1][2][0] + "_" + results[i+1][2][1] + " 流水" );
+                        }else {
+                            var wooksheet1 = XLSX.utils.aoa_to_sheet(results[i]);
+                            XLSX.utils.book_append_sheet(newbook, wooksheet1,results[i][2][0] + "_" + results[i][2][1] + " 统计" );
+                        }
+                    }
+                    XLSX.writeFile(newbook, "火币调证整理.xlsx");
+                },
+                error: function (xhr, e) {
+                    alert("解析失败");
+                }
+            })
+        }
+    </script>
+</body>
+</html>

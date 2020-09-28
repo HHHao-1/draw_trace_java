@@ -18,7 +18,6 @@ public class DrawAtlasController {
 
     @GetMapping("/drawAtlas")
     public String forward(){
-
         return "drawAtlas.html";
     }
 
