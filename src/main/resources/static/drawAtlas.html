@@ -12,25 +12,31 @@
             stroke: #666;
             stroke-width: 1.5px;
         }
+
         #licensing {
             fill: green;
         }
+
         .link.licensing {
             stroke: green;
         }
+
         .link.resolved {
-            stroke-dasharray: 0,2 1;
+            stroke-dasharray: 0, 2 1;
         }
+
         circle {
             fill: #ccc;
             stroke: #333;
             stroke-width: 1.5px;
         }
+
         text {
             font: 12px Microsoft YaHei;
             pointer-events: none;
             text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
         }
+
         .linetext {
             font-size: 12px Microsoft YaHei;
         }
@@ -39,9 +45,12 @@
 <body>
 <div style="position: fixed">
     <input type="file" id="selectFiles" multiple="multiple" accept=".csv">
-    <input type="text" id="minValue" placeholder="最小值" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
-    <input type="text" id="maxValue" placeholder="最大值" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
-    <input type="text" id="bit" placeholder="地址显示位数" onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
+    <input type="text" id="minValue" placeholder="最小值"
+           onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
+    <input type="text" id="maxValue" placeholder="最大值"
+           onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
+    <input type="text" id="bit" placeholder="地址显示位数"
+           onKeypress="if (event.keyCode < 48 || event.keyCode > 57) event.returnValue = false;">
     <button type="button" onclick="dealSelectFiles()">解析</button>
     <br>
     <label id="inCount"></label>
@@ -65,17 +74,16 @@
 
     function dealSelectFiles() {
 
-        if($("#selectFiles")[0].files.length > 0) {
-
+        if ($("#selectFiles")[0].files.length > 0) {
             //获取前台数据
             var formData = new FormData();
-            for(var i = 0;i < $("#selectFiles")[0].files.length;i++){
+            for (var i = 0; i < $("#selectFiles")[0].files.length; i++) {
                 formData.append("selectFiles", $("#selectFiles")[0].files[i]);
             }
-            formData.append("min",$("#minValue").val());
-            formData.append("max",$("#maxValue").val());
-            formData.append("bit",$("#bit").val());
-            formData.append("identification",$("#identification").val());
+            formData.append("min", $("#minValue").val());
+            formData.append("max", $("#maxValue").val());
+            formData.append("bit", $("#bit").val());
+            formData.append("identification", $("#identification").val());
 
             //ajax请求
             $.ajax({
@@ -85,24 +93,20 @@
                 contentType: false,
                 processData: false,
                 success: function (res) {
-                    if(res == "") {
-                        alert("解析失败")
-                    } else {
-                        //显示元素
-                        document.getElementById("inCount").innerText = "输入次数：";
-                        document.getElementById("outCount").innerText = "输出次数：";
-                        document.getElementById("inValue").innerText = "输入额度：";
-                        document.getElementById("outValue").innerText = "输出额度：";
-                        document.getElementById("value").innerText = "余额：";
+                    //显示元素
+                    document.getElementById("inCount").innerText = "输入次数：";
+                    document.getElementById("outCount").innerText = "输出次数：";
+                    document.getElementById("inValue").innerText = "输入额度：";
+                    document.getElementById("outValue").innerText = "输出额度：";
+                    document.getElementById("value").innerText = "余额：";
 
-                        //处理返回值
-                        const {nodeList: nList, linkList: lList, identMap: iMap} = res;
-                        if (iMap.error == "请使用英文逗号") {
-                            alert("请使用英文逗号")
-                        } else {
+                    //处理返回值
+                    switch (res.code) {
+                        case 1000:
+                            const {nodeList: nList, linkList: lList, identMap: iMap} = res.data;
+                            console.log("success");
                             nodelist = nList;
                             linklist = lList;
-
                             //linklist.source和linklist.target引用nodelist的值
                             for (var i = 0; i < linklist.length; i++) {
                                 let source = linklist[i].source;
@@ -116,19 +120,30 @@
                                     }
                                 }
                             }
-
                             identMap = new Map()
                             for (var key in iMap) {
                                 identMap.set(key, iMap[key])
                             }
                             //绘图
                             drawAtlas();
-                        }
-                    }
 
+                            break;
+
+                        case 1001:
+                            alert("输入格式错误")
+                            break;
+                        case 1002:
+                            alert("未导入文件")
+                            break;
+                        case 1003:
+                            alert("解析失败")
+                            break;
+                        default:
+                            alert("未知错误")
+                    }
                 },
                 error: function (xhr, e) {
-                    alert("解析失败");
+                    alert("服务器响应失败");
                 }
             })
         }
@@ -160,31 +175,31 @@
         //箭头
         var marker = svg.append("marker")
             .attr("id", "resolved")
-            .attr("markerUnits","userSpaceOnUse")
+            .attr("markerUnits", "userSpaceOnUse")
             .attr("viewBox", "0 -5 10 10")//坐标系的区域
             .attr("refX", 26)//箭头坐标
             .attr("refY", -1)
             .attr("markerWidth", 12)//标识的大小
             .attr("markerHeight", 12)
             .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
-            .attr("stroke-width",2)//箭头宽度
+            .attr("stroke-width", 2)//箭头宽度
             .append("path")
             .attr("d", "M0,-5L10,0L0,5")//箭头的路径
-            .attr('fill','#000000');//箭头颜色
+            .attr('fill', '#000000');//箭头颜色
 
         var markerIdent = svg.append("marker")
             .attr("id", "resolvedIdent")
-            .attr("markerUnits","userSpaceOnUse")
+            .attr("markerUnits", "userSpaceOnUse")
             .attr("viewBox", "0 -5 10 10")//坐标系的区域
             .attr("refX", 44)//箭头坐标
             .attr("refY", 0)
             .attr("markerWidth", 12)//标识的大小
             .attr("markerHeight", 12)
             .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
-            .attr("stroke-width",2)//箭头宽度
+            .attr("stroke-width", 2)//箭头宽度
             .append("path")
             .attr("d", "M0,-5L10,0L0,5")//箭头的路径
-            .attr('fill','#000000');//箭头颜色
+            .attr('fill', '#000000');//箭头颜色
 
         //设置连接线
         edges_line = svg.selectAll(".edgepath")
@@ -192,14 +207,19 @@
             .enter()
             .append("path")
             .attr({
-                'd': function(d) {return 'M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y},
-                'class':'edgepath',
-                'id':function(d,i) {return 'edgepath'+i;}})
-            .style("stroke",function(d){
+                'd': function (d) {
+                    return 'M ' + d.source.x + ' ' + d.source.y + ' L ' + d.target.x + ' ' + d.target.y
+                },
+                'class': 'edgepath',
+                'id': function (d, i) {
+                    return 'edgepath' + i;
+                }
+            })
+            .style("stroke", function (d) {
                 return '#B43232';
             })
             .style("pointer-events", "none")
-            .style("stroke-width",0.5)//线条粗细
+            .style("stroke-width", 0.5)//线条粗细
             .attr("marker-end", function (d) {
                 if (identMap.has(d.target.name))
                     return "url(#resolvedIdent)";
@@ -212,46 +232,53 @@
             .enter()
             .append("text")
             .style("pointer-events", "none")
-            .attr({  'class':'edgelabel',
-                'id':function(d,i){return 'edgepath'+i;},
-                'dx':80,
-                'dy':0
+            .attr({
+                'class': 'edgelabel',
+                'id': function (d, i) {
+                    return 'edgepath' + i;
+                },
+                'dx': 80,
+                'dy': 0
             });
 
         //设置线条上的文字
         edges_text.append('textPath')
-            .attr('xlink:href',function(d,i) {return '#edgepath'+i})
+            .attr('xlink:href', function (d, i) {
+                return '#edgepath' + i
+            })
             .style("pointer-events", "none")
-            .text(function(d){return d.value;});
+            .text(function (d) {
+                return d.value;
+            });
 
         //圆圈
         circle = svg.append("g").selectAll("circle")
             .data(force.nodes())//表示使用force.nodes数据
             .enter().append("circle")
-            .style("fill",function(node){
+            .style("fill", function (node) {
                 if (node.outCount > node.inCount)
                     return '#FFF1CF';
                 else
                     return '#FEF4F4';
             })
-            .style('stroke',function(node){
+            .style('stroke', function (node) {
                 if (node.value > 0)
                     return '#69B076';
                 else
                     return '#4C6CB3';
             })
-            .attr("r", function (node){
+            .attr("r", function (node) {
                 if (identMap.has(node.name))
                     return 40;
                 else
                     return 20;
             })//设置圆圈半径
-            .on("click",function(node){
+            .on("click", function (node) {
                 //单击时让连接线加粗
-                edges_line.style("stroke-width",function(line){
-                    if(line.source.name==node.name || line.target.name==node.name){
+                edges_line.style("stroke-width", function (line) {
+                    if (line.source.name == node.name || line.target.name == node.name) {
                         return 4;
-                    }else{
+                    } else {
                         return 0.5;
                     }
                 });
@@ -265,7 +292,7 @@
 
         //圆圈的提示文字
         circle.append("svg:title")
-            .text(function(node) {
+            .text(function (node) {
                 return node.name;
             });
 
@@ -276,12 +303,12 @@
             .append("text")
             .attr("dy", ".35em")
             .attr("text-anchor", "middle")//在圆圈中加上数据
-            .style('fill',function(node){
+            .style('fill', function (node) {
                 if (node.value > 0)
                     return '#EB5381';
                 else
                     return '#94ADDA';
-            }).attr('x',function(d){
+            }).attr('x', function (d) {
                 var re_en = /[a-zA-Z]+/g;
                 var name = identMap.get(d.name);
                 if (name == "" || name == undefined) {
@@ -291,33 +318,43 @@
                 }
 
                 //如果是全英文，不换行
-                if(name.match(re_en)){
+                if (name.match(re_en)) {
                     d3.select(this).append('tspan')
-                        .attr('x',0)
-                        .attr('y',2)
-                        .text(function(){return name;});
+                        .attr('x', 0)
+                        .attr('y', 2)
+                        .text(function () {
+                            return name;
+                        });
                 }
                 //如果小于四个字符，不换行
-                else if(name.length<=4){
+                else if (name.length <= 4) {
                     d3.select(this).append('tspan')
-                        .attr('x',0)
-                        .attr('y',2)
-                        .text(function(){return name;});
-                }else{
-                    var top=name.substring(0,4);
-                    var bot=name.substring(4,name.length);
+                        .attr('x', 0)
+                        .attr('y', 2)
+                        .text(function () {
+                            return name;
+                        });
+                } else {
+                    var top = name.substring(0, 4);
+                    var bot = name.substring(4, name.length);
 
-                    d3.select(this).text(function(){return '';});
+                    d3.select(this).text(function () {
+                        return '';
+                    });
 
                     d3.select(this).append('tspan')
-                        .attr('x',0)
-                        .attr('y',-7)
-                        .text(function(){return top;});
+                        .attr('x', 0)
+                        .attr('y', -7)
+                        .text(function () {
+                            return top;
+                        });
 
                     d3.select(this).append('tspan')
-                        .attr('x',0)
-                        .attr('y',10)
-                        .text(function(){return bot;});
+                        .attr('x', 0)
+                        .attr('y', 10)
+                        .text(function () {
+                            return bot;
+                        });
                 }
                 //直接显示文字
                 /*.text(function(d) {
@@ -330,19 +367,18 @@
         circle.attr("transform", transform1);//圆圈
         text.attr("transform", transform2);//顶点文字
 
-        edges_line.attr('d', function(d) {
-            var path='M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y;
+        edges_line.attr('d', function (d) {
+            var path = 'M ' + d.source.x + ' ' + d.source.y + ' L ' + d.target.x + ' ' + d.target.y;
             return path;
         });
 
-        edges_text.attr('transform',function(d,i){
-            if (d.target.x<d.source.x){
+        edges_text.attr('transform', function (d, i) {
+            if (d.target.x < d.source.x) {
                 bbox = this.getBBox();
-                rx = bbox.x+bbox.width/2;
-                ry = bbox.y+bbox.height/2;
-                return 'rotate(180 '+rx+' '+ry+')';
-            }
-            else {
+                rx = bbox.x + bbox.width / 2;
+                ry = bbox.y + bbox.height / 2;
+                return 'rotate(180 ' + rx + ' ' + ry + ')';
+            } else {
                 return 'rotate(0)';
             }
         });
@@ -350,20 +386,20 @@
         // 动态调整画布大小，可以显示出全部node
 
         //  计算左上角的点与右下角的点
-        var max = {x : 0, y : 0},
-            min = {x : 0, y : 0}
+        var max = {x: 0, y: 0},
+            min = {x: 0, y: 0}
 
         circle.attr("id", function (node) {
-            if(node.px > max.x) {
+            if (node.px > max.x) {
                 max.x = node.px
             }
-            if(node.py > max.y) {
+            if (node.py > max.y) {
                 max.y = node.py
             }
-            if(node.px < min.x) {
+            if (node.px < min.x) {
                 min.x = node.px
             }
-            if(node.py < min.y) {
+            if (node.py < min.y) {
                 min.y = node.py
             }
         })
@@ -385,7 +421,7 @@
 
     //设置连接线的坐标,使用椭圆弧路径段双向编码
     function linkArc(d) {
-        return 'M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y
+        return 'M ' + d.source.x + ' ' + d.source.y + ' L ' + d.target.x + ' ' + d.target.y
     }
 
     //设置圆圈和文字的坐标

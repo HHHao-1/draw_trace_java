@@ -2,14 +2,11 @@ package com.chaindigg.TransferAtlas.utils;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 
 public class MultipartFileToFile {
 
-    public static File multipartFileToFile(MultipartFile file) throws Exception {
+    public static File multipartFileToFile(MultipartFile file) throws IOException {
 
         File toFile = null;
         if (file.equals("") || file.getSize() <= 0) {
