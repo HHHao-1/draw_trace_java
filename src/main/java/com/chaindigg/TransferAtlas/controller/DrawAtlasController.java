@@ -14,6 +14,11 @@ import java.io.IOException;
 
 @Controller
 public class DrawAtlasController {
+    @GetMapping("/vue")
+    @ResponseBody
+    public String vue(){
+        return "成功了";
+    }
 
     @Resource
     private DrawAtlasService drawAtlasService;
@@ -30,7 +35,10 @@ public class DrawAtlasController {
         try {
             ajaxResponse = drawAtlasService.dealData(selectFiles, min, max, identification);
         } catch (IOException e) {
-            return AjaxResponse.fail(StatusCode.S3.code, StatusCode.S3.message);
+            return AjaxResponse.builder()
+                    .code(StatusCode.S3.code)
+                    .message(StatusCode.S3.message)
+                    .build();
         }
         return ajaxResponse;
     }

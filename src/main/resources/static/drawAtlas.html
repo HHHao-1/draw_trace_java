@@ -87,7 +87,7 @@
 
             //ajax请求
             $.ajax({
-                url: '/dealDrawData',
+                url: '/api/dealDrawData',
                 type: 'post',
                 data: formData,
                 contentType: false,
@@ -101,46 +101,34 @@
                     document.getElementById("value").innerText = "余额：";
 
                     //处理返回值
-                    switch (res.code) {
-                        case 1000:
-                            const {nodeList: nList, linkList: lList, identMap: iMap} = res.data;
-                            console.log("success");
-                            nodelist = nList;
-                            linklist = lList;
-                            //linklist.source和linklist.target引用nodelist的值
-                            for (var i = 0; i < linklist.length; i++) {
-                                let source = linklist[i].source;
-                                let target = linklist[i].target;
-                                for (var j = 0; j < nodelist.length; j++) {
-                                    if (source.name == nodelist[j].name) {
-                                        linklist[i].source = nodelist[j]
-                                    }
-                                    if (target.name == nodelist[j].name) {
-                                        linklist[i].target = nodelist[j]
-                                    }
+                    if (res.code == 1000) {
+                        const {nodeList: nList, linkList: lList, identMap: iMap} = res.data;
+                        console.log("success");
+                        nodelist = nList;
+                        linklist = lList;
+                        //linklist.source和linklist.target引用nodelist的值
+                        for (var i = 0; i < linklist.length; i++) {
+                            let source = linklist[i].source;
+                            let target = linklist[i].target;
+                            for (var j = 0; j < nodelist.length; j++) {
+                                if (source.name == nodelist[j].name) {
+                                    linklist[i].source = nodelist[j]
+                                }
+                                if (target.name == nodelist[j].name) {
+                                    linklist[i].target = nodelist[j]
                                 }
                             }
-                            identMap = new Map()
-                            for (var key in iMap) {
-                                identMap.set(key, iMap[key])
-                            }
-                            //绘图
-                            drawAtlas();
-
-                            break;
-
-                        case 1001:
-                            alert("输入格式错误")
-                            break;
-                        case 1002:
-                            alert("未导入文件")
-                            break;
-                        case 1003:
-                            alert("解析失败")
-                            break;
-                        default:
-                            alert("未知错误")
+                        }
+                        identMap = new Map()
+                        for (var key in iMap) {
+                            identMap.set(key, iMap[key])
+                        }
+                        //绘图
+                        drawAtlas();
+                    } else {
+                        alert(res.message)
                     }
+
                 },
                 error: function (xhr, e) {
                     alert("服务器响应失败");
@@ -282,11 +270,11 @@
                         return 0.5;
                     }
                 });
-                document.getElementById("inCount").innerText = "输入次数：" + node.inCount;
-                document.getElementById("outCount").innerText = "输出次数：" + node.outCount;
-                document.getElementById("inValue").innerText = "输入额度：" + node.inValue;
-                document.getElementById("outValue").innerText = "输出额度：" + node.outValue;
-                document.getElementById("value").innerText = "余额：" + node.value;
+                // document.getElementById("inCount").innerText = "输入次数：" + node.inCount;
+                // document.getElementById("outCount").innerText = "输出次数：" + node.outCount;
+                // document.getElementById("inValue").innerText = "输入额度：" + node.inValue;
+                // document.getElementById("outValue").innerText = "输出额度：" + node.outValue;
+                // document.getElementById("value").innerText = "余额：" + node.value;
             })
             .call(force.drag);//将当前选中的元素传到drag函数中，使顶点可以被拖动
 

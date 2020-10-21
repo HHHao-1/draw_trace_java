@@ -15,10 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author chenghao
@@ -38,7 +35,11 @@ public class DrawAtlasService {
      */
     public AjaxResponse dealData(MultipartFile[] selectFiles, String min, String max, String identification) throws IOException {
 
-        Map<String, Object> dealSelectFile = (Map<String, Object>)dealSelectFile(selectFiles).getData();
+        if (dealSelectFile(selectFiles).getCode() != 1000) {
+            return dealSelectFile(selectFiles);
+        }
+
+        Map<String, Object> dealSelectFile = (Map<String, Object>) dealSelectFile(selectFiles).getData();
         Map<String, NodeDO> nodes = (Map<String, NodeDO>) dealSelectFile.get("nodes");
         Map<String, Map<String, String>> links = (Map<String, Map<String, String>>) dealSelectFile.get("links");
 
@@ -50,17 +51,20 @@ public class DrawAtlasService {
         Map<String, String> identMap = new HashMap();
         // 设置高亮节点
         if (identification != null && !identification.equals("")) {
-            if (identification.contains("，")) {
-                return AjaxResponse.fail(StatusCode.S1.code, StatusCode.S1.message);
-            } else {
-                String[] splitdate = identification.split("\\s+");
-                // 解析文件
-                for (int i = 0; i < splitdate.length; i++) {
+            String[] splitdate = identification.trim().split("\\s+");
+            // 解析文件
+            for (int i = 0; i < splitdate.length; i++) {
+                try {
                     // 解析高亮条件
-                    String[] data = splitdate[i].split(",");
+                    String[] data = splitdate[i].replaceAll(" *", "").split(",|，");
                     String address = data[0];
                     String ident = data[1];
                     identMap.put(address, ident);
+                } catch (Exception e) {
+                    return AjaxResponse.builder()
+                            .code(StatusCode.S1.code)
+                            .message(StatusCode.S1.message)
+                            .build();
                 }
             }
         }
@@ -68,11 +72,15 @@ public class DrawAtlasService {
         // 设置最大值和最小值
         BigDecimal minValue = new BigDecimal(-1);
         BigDecimal maxValue = new BigDecimal(-1);
-        if (!min.equals("")) {
-            minValue = new BigDecimal(min);
-        }
-        if (!max.equals("")) {
-            maxValue = new BigDecimal(max);
+        try {
+            if (Objects.equals(min, "") && Objects.equals(min, null)) {
+                minValue = new BigDecimal(min);
+            }
+            if (Objects.equals(min, "") && Objects.equals(min, null)) {
+                maxValue = new BigDecimal(max);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         boolean filtered = false;
@@ -80,7 +88,7 @@ public class DrawAtlasService {
         Map<String, NodeDO> tmpNodeMap = new HashMap();
         // 构建绘制需要的node节点信息，构建nodelist
         for (Map.Entry<String, NodeDO> entry : nodes.entrySet()) {
-            if (identMap.get(entry.getKey()) == "-") {
+            if (Objects.equals(identMap.get(entry.getKey()), "-")) {
                 continue;
             }
             NodeDO node = new NodeDO();
@@ -96,16 +104,19 @@ public class DrawAtlasService {
 
         // 构建绘制需要的link信息，构建linklist
         for (Map.Entry<String, Map<String, String>> entry1 : links.entrySet()) {
+            if (Objects.equals(identMap.get(entry1.getKey()), "-")) {
+                continue;
+            }
             // from节点
             LinkDO link = new LinkDO();
             link.setSource(tmpNodeMap.get(entry1.getKey()));
             // to节点
             for (Map.Entry<String, String> entry2 : entry1.getValue().entrySet()) {
-                if (identMap.get(entry2.getKey()) == "-") {
+                if (Objects.equals(identMap.get(entry2.getKey()), "-")) {
                     continue;
                 }
                 LinkDO link2 = new LinkDO();
-                link2.setSource(link.getSource());
+                link2.setSource(tmpNodeMap.get(entry1.getKey()));
                 link2.setTarget(tmpNodeMap.get(entry2.getKey()));
                 // 用于样式
                 link2.setType("resolved");
@@ -151,7 +162,11 @@ public class DrawAtlasService {
                 put("identMap", identMap);
             }
         };
-        return AjaxResponse.success(response);
+        return AjaxResponse.builder()
+                .code(StatusCode.S0.code)
+                .message(StatusCode.S0.message)
+                .data(response)
+                .build();
     }
 
     /***
@@ -245,8 +260,11 @@ public class DrawAtlasService {
                 }
                 MultipartFileToFile.delteTempFile(inFile);
             }
-        }else{
-            return AjaxResponse.fail(StatusCode.S2.code, StatusCode.S2.message);
+        } else {
+            return AjaxResponse.builder().
+                    code(StatusCode.S2.code)
+                    .message(StatusCode.S2.message)
+                    .build();
         }
         Map<String, Object> response = new HashMap<String, Object>() {
             {
@@ -254,6 +272,10 @@ public class DrawAtlasService {
                 put("links", links);
             }
         };
-        return AjaxResponse.success(response);
+        return AjaxResponse.builder()
+                .code(StatusCode.S0.code)
+                .message(StatusCode.S0.message)
+                .data(response)
+                .build();
     }
 }
