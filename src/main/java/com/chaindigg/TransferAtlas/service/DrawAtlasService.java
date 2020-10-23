@@ -2,14 +2,12 @@ package com.chaindigg.TransferAtlas.service;
 
 //import com.chaindigg.TransferAtlas.pojo.Json;
 
-import com.chaindigg.TransferAtlas.model.AjaxResponse;
-import com.chaindigg.TransferAtlas.model.LinkDO;
-import com.chaindigg.TransferAtlas.model.NodeDO;
-import com.chaindigg.TransferAtlas.model.StatusCode;
+import com.chaindigg.TransferAtlas.model.*;
 import com.chaindigg.TransferAtlas.utils.MultipartFileToFile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +21,9 @@ import java.util.*;
 @Service
 public class DrawAtlasService {
 
+    @Resource
+    private Response responseData;
+
     /**
      * 构建绘图信息
      *
@@ -33,7 +34,7 @@ public class DrawAtlasService {
      * @return Map<String, Object>
      * @throws Exception
      */
-    public AjaxResponse dealData(MultipartFile[] selectFiles, String min, String max, String identification) throws IOException {
+    public Response dealData(MultipartFile[] selectFiles, String min, String max, String identification) throws IOException {
 
         if (dealSelectFile(selectFiles).getCode() != 1000) {
             return dealSelectFile(selectFiles);
@@ -61,10 +62,7 @@ public class DrawAtlasService {
                     String ident = data[1];
                     identMap.put(address, ident);
                 } catch (Exception e) {
-                    return AjaxResponse.builder()
-                            .code(StatusCode.S1.code)
-                            .message(StatusCode.S1.message)
-                            .build();
+                    return responseData.fail(StatusCode.PARAMS_ERROR);
                 }
             }
         }
@@ -72,17 +70,12 @@ public class DrawAtlasService {
         // 设置最大值和最小值
         BigDecimal minValue = new BigDecimal(-1);
         BigDecimal maxValue = new BigDecimal(-1);
-        try {
-            if (Objects.equals(min, "") && Objects.equals(min, null)) {
-                minValue = new BigDecimal(min);
-            }
-            if (Objects.equals(min, "") && Objects.equals(min, null)) {
-                maxValue = new BigDecimal(max);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (!(Objects.equals(max, "") || Objects.equals(max, null))) {
+            maxValue = new BigDecimal(max);
         }
-
+        if (!(Objects.equals(min, "") || Objects.equals(min, null))) {
+            minValue = new BigDecimal(min);
+        }
         boolean filtered = false;
 
         Map<String, NodeDO> tmpNodeMap = new HashMap();
@@ -162,11 +155,7 @@ public class DrawAtlasService {
                 put("identMap", identMap);
             }
         };
-        return AjaxResponse.builder()
-                .code(StatusCode.S0.code)
-                .message(StatusCode.S0.message)
-                .data(response)
-                .build();
+        return responseData.success(response);
     }
 
     /***
@@ -175,7 +164,7 @@ public class DrawAtlasService {
      * @return
      * @throws Exception
      */
-    public AjaxResponse dealSelectFile(MultipartFile[] selectFiles) throws IOException {
+    public Response dealSelectFile(MultipartFile[] selectFiles) throws IOException {
 
         Map<String, NodeDO> nodes = new HashMap<>();
         Map<String, Map<String, String>> links = new HashMap<>();
@@ -261,10 +250,7 @@ public class DrawAtlasService {
                 MultipartFileToFile.delteTempFile(inFile);
             }
         } else {
-            return AjaxResponse.builder().
-                    code(StatusCode.S2.code)
-                    .message(StatusCode.S2.message)
-                    .build();
+            return responseData.fail(StatusCode.FILE_ERROR);
         }
         Map<String, Object> response = new HashMap<String, Object>() {
             {
@@ -272,10 +258,6 @@ public class DrawAtlasService {
                 put("links", links);
             }
         };
-        return AjaxResponse.builder()
-                .code(StatusCode.S0.code)
-                .message(StatusCode.S0.message)
-                .data(response)
-                .build();
+        return responseData.success(response);
     }
 }

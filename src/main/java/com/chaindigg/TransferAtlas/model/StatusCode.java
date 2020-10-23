@@ -2,10 +2,10 @@ package com.chaindigg.TransferAtlas.model;
 
 public enum StatusCode {
     //状态码
-    S0(1000,"success"),
-    S1(1001,"输入格式错误"),
-    S2(1002,"未导入文件"),
-    S3(1003,"解析失败");
+    PARSE_SUCCESS(1000,"解析成功"),
+    PARAMS_ERROR(1001,"输入参数错误"),
+    FILE_ERROR(1002,"文件导入失败"),
+    PARSE_ERROR(1003,"解析失败");
 
     StatusCode(int code, String message) {
         this.code = code;

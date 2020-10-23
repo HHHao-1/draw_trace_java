@@ -1,11 +1,12 @@
 package com.chaindigg.TransferAtlas.controller;
 
-import com.chaindigg.TransferAtlas.model.AjaxResponse;
+import com.chaindigg.TransferAtlas.model.Response;
 import com.chaindigg.TransferAtlas.model.StatusCode;
 import com.chaindigg.TransferAtlas.service.DrawAtlasService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,16 +31,13 @@ public class DrawAtlasController {
 
     @ResponseBody
     @PostMapping("/dealDrawData")
-    public AjaxResponse drawAtlas(MultipartFile[] selectFiles, String min, String max, String identification) {
-        AjaxResponse ajaxResponse = null;
+    public Response drawAtlas(@RequestParam MultipartFile[] selectFiles, String min, String max, String identification) {
+        Response response = null;
         try {
-            ajaxResponse = drawAtlasService.dealData(selectFiles, min, max, identification);
+            response = drawAtlasService.dealData(selectFiles, min, max, identification);
         } catch (IOException e) {
-            return AjaxResponse.builder()
-                    .code(StatusCode.S3.code)
-                    .message(StatusCode.S3.message)
-                    .build();
+            return response.fail(StatusCode.PARSE_ERROR);
         }
-        return ajaxResponse;
+        return response;
     }
 }
