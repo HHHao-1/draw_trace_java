@@ -5,6 +5,7 @@ import com.chaindigg.TransferAtlas.service.HuobiStatService;
 import com.chaindigg.TransferAtlas.utils.MultipartFileToFile;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,8 +27,12 @@ public class HuobiStatController {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         Response response = huobiStatService.outputWorkbook(workbook);
-
+        stopWatch.stop();
+        //打印任务耗时
+        System.out.println("总计耗时" + stopWatch.getLastTaskTimeMillis() + "ms");
         return response;
     }
 }

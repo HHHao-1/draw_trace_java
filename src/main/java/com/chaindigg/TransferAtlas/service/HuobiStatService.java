@@ -2,6 +2,7 @@ package com.chaindigg.TransferAtlas.service;
 
 import com.chaindigg.TransferAtlas.model.Response;
 import com.chaindigg.TransferAtlas.model.StatusCode;
+import com.chaindigg.TransferAtlas.utils.GetSetFromTxt;
 import com.chaindigg.TransferAtlas.utils.MultipartFileToFile;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -13,17 +14,23 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+
 public class HuobiStatService {
-
-//    @Resource
-//    private Response response;
-
 
     public List<ArrayList<Object>> dataList1 = new ArrayList<>();//oct交易记录
     public List<ArrayList<Object>> dataList2 = new ArrayList<>();//充提记录
     public List<ArrayList<Object>> dataList3 = new ArrayList<>();//虚拟币交易记录
     public List<ArrayList<String>> userList = new ArrayList<>();//用户名集合
     public List sum = new ArrayList();//输送到前台的数据
+
+    public Set<String> currencys;//币种集合
+    {
+        try {
+            currencys = GetSetFromTxt.getSetFromTxt();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     //读取文件
     public Workbook readWorkbookFromLocalFile(MultipartFile selectFile) throws Exception {
@@ -34,10 +41,10 @@ public class HuobiStatService {
     }
 
 
-
     //输出表格
     public Response outputWorkbook(Workbook workbook){
         Response response = new Response();
+        System.out.println("数据预处理开始");
         //遍历所有sheet，数据预处理
         for (Sheet sheet:workbook) {
             if(sheet.getSheetName().equals("otc交易记录")){
@@ -46,13 +53,17 @@ public class HuobiStatService {
                     if(row.getRowNum() == 0){
                         continue;
                     }
-                    for (Cell cell:row) {
+                    int n = row.getLastCellNum();
+                    for (int i = 0; i < n; i++){
+                        //将空单元格读为""
+                        Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
                         Integer columnNum = cell.getColumnIndex();
                         if(columnNum == 0 || columnNum == 1 || columnNum == 4){
                             data.add(new BigDecimal(cell.toString()));
                         }else if(columnNum == 5){
                             //转换为统一日期格式
                             Date date0 = new Date(cell.toString().replace('-','/'));
+//                            date0.setTime(date0.getTime()+(8*60)*60*1000);
                             SimpleDateFormat ft = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
                             String date = ft.format(date0);
                             data.add(date);
@@ -62,15 +73,21 @@ public class HuobiStatService {
                             cell.setCellType(CellType.STRING);
                             data.add(cell.toString());
                         }else {
-                            data.add(cell.toString());
+                            //空单元格处理
+                            if(cell.toString() == ""){
+                                data.add("-");
+                            }else {
+                                data.add(cell.toString());
+                            }
                         }
                         columnNum++;
 
-                        if(columnNum == 10){
+                        if(columnNum == n){
                             dataList1.add(row.getRowNum()-1, data);
                         }
                     }
                 }
+                System.out.println("otc交易数据预处理完毕");
 
             }else if (sheet.getSheetName().equals("充提记录")){
                 for (Row row:sheet) {
@@ -78,38 +95,50 @@ public class HuobiStatService {
                     if(row.getRowNum() == 0){
                         continue;
                     }
-                    for (Cell cell:row) {
+                    int n = row.getLastCellNum();
+                    for (int i = 0; i < n; i++){
+                        Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
                         Integer columnNum = cell.getColumnIndex();
                         if (columnNum == 5) {
                             data.add(new BigDecimal(cell.toString()));
-                        }else if(columnNum == 2){
+                        } else if(columnNum == 2){
                             cell.setCellType(CellType.STRING);
                             data.add(cell.toString());
                         }else if(columnNum == 6){
                             Date date0 = new Date(cell.toString().replace('-','/'));
+//                            date0.setTime(date0.getTime()+(8*60)*60*1000);
                             SimpleDateFormat ft = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
                             String date = ft.format(date0);
                             data.add(date);
                         }else if(columnNum == 4){
                             data.add(cell.toString().toUpperCase());
                         }else {
-                            data.add(cell.toString());
+                            if(cell.toString() == ""){
+                                data.add("-");
+                            }else {
+                                data.add(cell.toString());
+                            }
                         }
                         columnNum++;
 
-                        if(columnNum == 7){
+                        if(columnNum == n){
                             dataList2.add(row.getRowNum()-1, data);
                         }
                     }
                 }
+                System.out.println("充提记录数据预处理完毕");
 
             }else if(sheet.getSheetName().equals("虚拟币交易记录")){
+                //交易对切分
+                Map<String, String> coinTrans = new HashMap<>();
                 for (Row row:sheet) {
                     ArrayList<Object> data = new ArrayList<>();
                     if(row.getRowNum() == 0){
                         continue;
                     }
-                    for (Cell cell:row) {
+                    int n = row.getLastCellNum();
+                    for (int i = 0; i < n; i++){
+                        Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
                         Integer columnNum = cell.getColumnIndex();
                         if(columnNum == 0 || columnNum == 1 || columnNum == 2){
                             data.add(new BigDecimal(cell.toString()));
@@ -123,17 +152,49 @@ public class HuobiStatService {
                             String date = ft.format(date0);
                             data.add(date);
                         }else if(columnNum == 6){
-                            data.add(cell.toString().toUpperCase());
+                            //交易对处理
+                            if(cell.toString().contains("/")){
+                                data.add(cell.toString().toUpperCase());
+                            }else {
+                                //将未划分的交易对存入Map
+                                data.add(cell.toString());
+                                coinTrans.put(cell.toString(),"-");
+                            }
                         }else {
-                            data.add(cell.toString());
+                            if(cell.toString() == ""){
+                                data.add("-");
+                            }else {
+                                data.add(cell.toString());
+                            }
                         }
                         columnNum++;
 
-                        if(columnNum == 9){
+                        if(columnNum == n){
                             dataList3.add(row.getRowNum()-1, data);
                         }
                     }
                 }
+                //划分交易对
+                Set<String> coinPairSet = coinTrans.keySet();
+                for (String coinPair:coinPairSet) {
+                    for (String coin: currencys) {
+                        if(coinPair.startsWith(coin)) {
+                            coinTrans.put(coinPair,coin.toUpperCase() + "/" + coinPair.split(coin)[1].toUpperCase());
+                        }else if(coinPair.endsWith(coin)){
+                            coinTrans.put(coinPair,coinPair.split(coin)[0].toUpperCase() + "/" + coin.toUpperCase());
+                        }
+                    }
+                }
+                //更新交易对
+                for (ArrayList i:dataList3) {
+                    for (String coinPair:coinPairSet){
+                        if(i.get(6).equals(coinPair)){
+                            i.set(6,coinTrans.get(coinPair));
+                        }
+                    }
+
+                }
+                System.out.println("虚拟币交易记录数据预处理完毕");
 
             }else if(sheet.getSheetName().equals("用户注册信息")){
                 for (Row row:sheet) {
@@ -144,19 +205,23 @@ public class HuobiStatService {
                     for (Cell cell:row) {
                         Integer columnNum = cell.getColumnIndex();
                         if(columnNum == 5 || columnNum == 7){
-                            user.add((cell.toString()));
+                            cell.setCellType(CellType.STRING);
+                            user.add(cell.toString());
                         }
                         columnNum++;
 
-                        if(columnNum == 11){
-                            userList.add(row.getRowNum()-1, user);
+                        if(columnNum == row.getLastCellNum() && !userList.contains(user)){
+                            userList.add(user);
                         }
                     }
                 }
             }
         }
 
+        System.out.println("数据预处理完毕");
+
         //生成所有用户列表
+        sum.add(userList);
         for (ArrayList userId:userList) {
             sum.add(generateWorksheetsSum(userId));
             sum.add(generateWorksheetsDetails(userId));
@@ -230,7 +295,7 @@ public class HuobiStatService {
             results.add(result);
         }
 
-            for (ArrayList i:dataList3) {
+        for (ArrayList i:dataList3) {
             ArrayList<Object> result = new ArrayList<>();
             if(!i.get(4).equals(user.get(0))){
                 continue;
@@ -287,7 +352,7 @@ public class HuobiStatService {
 
             //时间格式处理
             Date date = new Date(i.get(0).toString());
-            SimpleDateFormat ft = new SimpleDateFormat("yyyy/MM/dd ahh:mm:ss",Locale.CHINESE);
+            SimpleDateFormat ft = new SimpleDateFormat("yyyy/MM/dd ahh:mm:ss", Locale.CHINESE);
             i.set(0,ft.format(date));
         }
 
@@ -303,6 +368,8 @@ public class HuobiStatService {
         sum0Head.add("币种余额");
         sum0Head.add("来源地址/目标地址");
         results.add(0,sum0Head);
+
+        System.out.println(user.get(0) + "汇总表格生成完毕");
         return results;
     }
 
@@ -456,19 +523,34 @@ public class HuobiStatService {
             result.add(user.get(1));
             result.add(user.get(0));
             result.add(time.get(key.get(count)).get(0) + "~" + time.get(key.get(count)).get(time.get(key.get(count)).size() - 1));//时间段
-            result.add(keyIn.get(count));
-            result.add(valuesIn.get(keyIn.get(count)).get(0));
-            result.add(valuesIn.get(keyIn.get(count)).get(1));
-            result.add(keyOut.get((count)));
-            result.add(valuesOut.get(keyOut.get(count)).get(0));
-            result.add(valuesOut.get(keyOut.get(count)).get(1));
+            //买入和卖出不对等处理
+            if(keyIn.isEmpty() || keyIn.size()<count+1){
+                result.add("-");
+                result.add("-");
+                result.add("-");
+            }else {
+                result.add(keyIn.get(count));
+                result.add(valuesIn.get(keyIn.get(count)).get(0));
+                result.add(valuesIn.get(keyIn.get(count)).get(1));
+            }
+            if(keyOut.isEmpty() || keyOut.size()<count+1){
+                result.add("-");
+                result.add("-");
+                result.add("-");
+            }else {
+                result.add(keyOut.get((count)));
+                result.add(valuesOut.get(keyOut.get(count)).get(0));
+                result.add(valuesOut.get(keyOut.get(count)).get(1));
+            }
             fiatCurrency.add(result);
             count++;
         }
+        System.out.println(user.get(0) + "法币交易统计数据表格生成完毕");
         return fiatCurrency;
     }
 
     public List<ArrayList<Object>> generateC2CCurrency(ArrayList<String> user){
+
 
         //币币交易
         List<ArrayList<Object>> c2c = new ArrayList<>();
@@ -556,6 +638,7 @@ public class HuobiStatService {
         }
         //按币种排序
         sort(c2c,3);
+        System.out.println(user.get(0) + "币币交易统计数据表格生成完毕");
         return c2c;
     }
 
@@ -604,6 +687,7 @@ public class HuobiStatService {
             result.add(value.get(i));
             recharge.add(result);
         }
+        System.out.println(user.get(0) + "充币交易统计数据表格生成完毕");
         return recharge;
     }
 
@@ -656,6 +740,7 @@ public class HuobiStatService {
         }
         //按币种排序
         sort(withdraw,3);
+        System.out.println(user.get(0) + "提币交易统计数据表格生成完毕");
         return withdraw;
     }
 
